@@ -75,11 +75,14 @@
 	        	}
 		}
 
+		let gotten_loc = false;
+
 		mainsocket.onmessage = event => {
 			if (event.data === "::tired")
 			{
 				document.getElementById("status").innerHTML = "Tired";
-				if (navigator.geolocation) {
+				if (navigator.geolocation && !gotten_loc) {
+					gotten_loc = true;
 					navigator.geolocation.getCurrentPosition((position) =>
 					{
 						const lat = position.coords.latitude;
