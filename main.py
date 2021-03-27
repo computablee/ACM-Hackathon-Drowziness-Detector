@@ -53,7 +53,6 @@ def shape_to_np(shape, dtype="int"):
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-p", "--shape-predictor", required=True, help="path to facial landmark predictor")
-ap.add_argument("-i", "--image", required=True, help="path to input image")
 
 args = vars(ap.parse_args())
 
