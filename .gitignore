@@ -1,3 +1,6 @@
+#environment variables
+setenviron.sh
+
 #predictor models
 *.dat
 
