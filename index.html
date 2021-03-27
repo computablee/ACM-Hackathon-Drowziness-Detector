@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html>
 	<body>
-		<p id="status">OpenOrClosed</p>
+		<h1>
+			<p id="status">OpenOrClosed</p>
+		</h1>
 	</body>
 
 	<video autoplay="true" id="videoElement"></video>
@@ -25,7 +27,9 @@
 		}).catch(console.log);
 
 		mainsocket.onmessage = event => {
-			if (event.data === "::open")
+			if (event.data === "::tired")
+				document.getElementById("status").innerHTML = "Tired";
+			else if (event.data === "::open")
 				document.getElementById("status").innerHTML = "Open";
 			else
 				document.getElementById("status").innerHTML = "Closed";

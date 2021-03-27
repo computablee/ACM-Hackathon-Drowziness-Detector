@@ -62,6 +62,8 @@ detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(args["shape_predictor"])
 
 async def handle_socket(websocket, path):
+	tired = False
+	queue = []
 	while True:
 		data = await websocket.recv()
 		padding = len(data) % 4;
@@ -87,10 +89,24 @@ async def handle_socket(websocket, path):
 			avg = (eye1 + eye2)/2
 
 			print(avg)
+			print(sum(queue))
+
+			if sum(queue) >= 25:
+				tired = True;
+
+			if tired:
+				await websocket.send("::tired")
+				continue
 
 			if avg < 0.18:
+				queue.append(1)
+				if len(queue) > 50:
+                                        queue = queue[1:]
 				await websocket.send("::closed")
 			else:
+				queue.append(0)
+				if len(queue) > 50:
+					queue = queue[1:]
 				await websocket.send("::open")
 
 start_server = websockets.serve(handle_socket, "localhost", 8081)
