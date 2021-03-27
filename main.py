@@ -80,7 +80,7 @@ async def handle_map_socket(websocket, path):
         latlon = await websocket.recv()
         api_key = os.environ["MAP_API_KEY"]
         response = requests.get(
-            f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?key={api_key}&location={latlon}&radius=2000&type=cafe")
+            f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?key={api_key}&location={latlon}&radius=32186&type=lodging")
         if (response.status_code >= 400):
             print("API Error")
         else:
