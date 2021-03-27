@@ -1,3 +1,5 @@
+debug = False
+
 import _thread
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from imutils import face_utils
@@ -27,6 +29,7 @@ class Serv(BaseHTTPRequestHandler):
 
 def serve_server():
 	httpd = HTTPServer(("localhost", 8080), Serv)
+	print("Serving HTTP server")
 	httpd.serve_forever()
 
 def mag(vec):
@@ -80,16 +83,18 @@ async def handle_socket(websocket, path):
 			shape = predictor(gray, rect)
 			shape = face_utils.shape_to_np(shape)
 
-			print(shape[36], shape[37], shape[38], shape[39], shape[40], shape[41])
-			print(shape[42], shape[43], shape[44], shape[45], shape[46], shape[47])
+			if debug:
+				print(shape[36], shape[37], shape[38], shape[39], shape[40], shape[41])
+				print(shape[42], shape[43], shape[44], shape[45], shape[46], shape[47])
 
 			eye1 = (mag(sub(shape[37], shape[41])) + mag(sub(shape[38], shape[40]))) / (2 * mag(sub(shape[36], shape[39])))
 			eye2 = (mag(sub(shape[43], shape[47])) + mag(sub(shape[44], shape[46]))) / (2 * mag(sub(shape[42], shape[45])))
 
 			avg = (eye1 + eye2)/2
 
-			print(avg)
-			print(sum(queue))
+			if debug:
+				print(avg)
+				print(sum(queue))
 
 			if sum(queue) >= 25:
 				tired = True;
@@ -111,5 +116,6 @@ async def handle_socket(websocket, path):
 
 start_server = websockets.serve(handle_socket, "localhost", 8081)
 
+print("Serving websockets")
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
