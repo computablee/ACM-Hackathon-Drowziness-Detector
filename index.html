@@ -1,34 +1,36 @@
 <!DOCTYPE html>
 <html>
-	<body>
-		<p id="status">OpenOrClosed</p>
-	</body>
 
-	<video autoplay="true" id="videoElement"></video>
-	<canvas id="canvas"></canvas>
+<body>
+	<p id="status">OpenOrClosed</p>
+</body>
 
-	<script type="text/javascript" src="https://unpkg.com/webcam-easy/dist/webcam-easy.min.js"></script>
-	<script>
-		var mainsocket = new WebSocket("ws://localhost:8081")
-		var video = document.querySelector("#videoElement");
-		var canvas = document.getElementById("canvas");
+<video autoplay="true" id="videoElement"></video>
+<canvas id="canvas"></canvas>
 
-		const webcam = new Webcam(video, "user", canvas);
-		webcam.start().then(() =>
-		{
-			setInterval(() =>
-			{
-				let data = webcam.snap();
-				console.log(data);
-				mainsocket.send(data.split(',')[1]);
-			}, 100);
-		}).catch(console.log);
+<script type="text/javascript" src="https://unpkg.com/webcam-easy/dist/webcam-easy.min.js"></script>
+<script>
+	var mainsocket = new WebSocket("ws://localhost:8081")
+	var video = document.querySelector("#videoElement");
+	var canvas = document.getElementById("canvas");
 
-		mainsocket.onmessage = event => {
-			if (event.data === "::open")
-				document.getElementById("status").innerHTML = "Open";
-			else
-				document.getElementById("status").innerHTML = "Closed";
-		};
-	</script>
+	const webcam = new Webcam(video, "user", canvas);
+	webcam.start().then(() => {
+		setInterval(() => {
+			let data = webcam.snap();
+			console.log(data);
+			mainsocket.send(data.split(',')[1]);
+		}, 100);
+	}).catch(console.log);
+
+	mainsocket.onmessage = event => {
+		if (event.data === "::open")
+			document.getElementById("status").innerHTML = "Open";
+		else if (event.data === "::closed")
+			document.getElementById("status").innerHTML = "Closed";
+		else
+			document.getElementById("status").innerHTML = "Tired";
+	};
+</script>
+
 </html>
