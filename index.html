@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 	<body>
-		<p>Test</p>
+		<p id="status">OpenOrClosed</p>
 	</body>
 
 	<video autoplay="true" id="videoElement"></video>
@@ -20,8 +20,15 @@
 			{
 				let data = webcam.snap();
 				console.log(data);
-				mainsocket.send(data.split(',')[0]);
+				mainsocket.send(data.split(',')[1]);
 			}, 100);
 		}).catch(console.log);
+
+		mainsocket.onmessage = event => {
+			if (event.data === "::open")
+				document.getElementById("status").innerHTML = "Open";
+			else
+				document.getElementById("status").innerHTML = "Closed";
+		};
 	</script>
 </html>

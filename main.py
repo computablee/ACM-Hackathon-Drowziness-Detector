@@ -63,35 +63,36 @@ detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(args["shape_predictor"])
 
 async def handle_socket(websocket, path):
-	data = await websocket.recv()
-	padding = len(data) % 4;
-	data += '=' * (4 - padding)
-	file_bytes = np.frombuffer(base64.b64decode(data), dtype=np.uint8)
-	frame = cv2.imdecode(file_bytes, flags=cv2.IMREAD_UNCHANGED)
+	while True:
+		data = await websocket.recv()
+		padding = len(data) % 4;
+		data += '=' * (4 - padding)
+		file_bytes = np.frombuffer(base64.b64decode(data), dtype=np.uint8)
+		frame = cv2.imdecode(file_bytes, flags=cv2.IMREAD_UNCHANGED)
 
-	frame = imutils.resize(frame, width=500)
-	gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+		frame = imutils.resize(frame, width=500)
+		gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-	rects = detector(gray, 1)
+		rects = detector(gray, 1)
 
-	for (i, rect) in enumerate(rects):
-		shape = predictor(gray, rect)
-		shape = face_utils.shape_to_np(shape)
+		for (i, rect) in enumerate(rects):
+			shape = predictor(gray, rect)
+			shape = face_utils.shape_to_np(shape)
 
-		print(shape[36], shape[37], shape[38], shape[39], shape[40], shape[41])
-		print(shape[42], shape[43], shape[44], shape[45], shape[46], shape[47])
+			print(shape[36], shape[37], shape[38], shape[39], shape[40], shape[41])
+			print(shape[42], shape[43], shape[44], shape[45], shape[46], shape[47])
 
-		eye1 = (mag(sub(shape[37], shape[41])) + mag(sub(shape[38], shape[40]))) / (2 * mag(sub(shape[36], shape[39])))
-		eye2 = (mag(sub(shape[43], shape[47])) + mag(sub(shape[44], shape[46]))) / (2 * mag(sub(shape[42], shape[45])))
+			eye1 = (mag(sub(shape[37], shape[41])) + mag(sub(shape[38], shape[40]))) / (2 * mag(sub(shape[36], shape[39])))
+			eye2 = (mag(sub(shape[43], shape[47])) + mag(sub(shape[44], shape[46]))) / (2 * mag(sub(shape[42], shape[45])))
 
-		avg = (eye1 + eye2)/2
+			avg = (eye1 + eye2)/2
 
-		print(avg)
+			print(avg)
 
-		if avg < 0.2:
-			websocket.send("::closed")
-		else:
-			websocket.send("::open")
+			if avg < 0.18:
+				await websocket.send("::closed")
+			else:
+				await websocket.send("::open")
 
 start_server = websockets.serve(handle_socket, "localhost", 8081)
 
