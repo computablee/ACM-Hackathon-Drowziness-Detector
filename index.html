@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+	<body>
+		<p>Test</p>
+	</body>
+
+	<video autoplay="true" id="videoElement"></video>
+	<canvas id="canvas"></canvas>
+
+	<script type="text/javascript" src="https://unpkg.com/webcam-easy/dist/webcam-easy.min.js"></script>
+	<script>
+		var mainsocket = new WebSocket("ws://localhost:8081")
+		var video = document.querySelector("#videoElement");
+		var canvas = document.getElementById("canvas");
+
+		const webcam = new Webcam(video, "user", canvas);
+		webcam.start().then(() =>
+		{
+			setInterval(() =>
+			{
+				let data = webcam.snap();
+				console.log(data);
+				mainsocket.send(data.split(',')[0]);
+			}, 100);
+		}).catch(console.log);
+	</script>
+</html>

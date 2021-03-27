@@ -1,9 +1,33 @@
+import _thread
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from imutils import face_utils
 import numpy as np
 import cv2
 import dlib
 import imutils
 import argparse
+import asyncio
+import websockets
+from imageio import imread
+import io
+import base64
+
+class Serv(BaseHTTPRequestHandler):
+	def do_GET(self):
+		if self.path == '/':
+			self.path = "/index.html"
+		try:
+			file_to_open = open(self.path[1:]).read()
+			self.send_response(200)
+		except:
+			file_to_open = "File not found"
+			self.send_response(404)
+		self.end_headers()
+		self.wfile.write(bytes(file_to_open, "utf-8"))
+
+def serve_server():
+	httpd = HTTPServer(("localhost", 8080), Serv)
+	httpd.serve_forever()
 
 def mag(vec):
 	return np.sqrt(vec[0] * vec[0] + vec[1] * vec[1])
@@ -33,38 +57,43 @@ ap.add_argument("-i", "--image", required=True, help="path to input image")
 
 args = vars(ap.parse_args())
 
+_thread.start_new_thread(serve_server, ())
+
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(args["shape_predictor"])
 
-frame = cv2.imread(args["image"])
+async def handle_socket(websocket, path):
+	data = await websocket.recv()
+	padding = len(data) % 4;
+	data += '=' * (4 - padding)
+	file_bytes = np.frombuffer(base64.b64decode(data), dtype=np.uint8)
+	frame = cv2.imdecode(file_bytes, flags=cv2.IMREAD_UNCHANGED)
 
-frame = imutils.resize(frame, width=500)
-gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+	frame = imutils.resize(frame, width=500)
+	gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-rects = detector(gray, 1)
+	rects = detector(gray, 1)
 
-for (i, rect) in enumerate(rects):
-	shape = predictor(gray, rect)
-	shape = face_utils.shape_to_np(shape)
+	for (i, rect) in enumerate(rects):
+		shape = predictor(gray, rect)
+		shape = face_utils.shape_to_np(shape)
 
-	print(shape[36], shape[37], shape[38], shape[39], shape[40], shape[41])
-	print(shape[42], shape[43], shape[44], shape[45], shape[46], shape[47])
+		print(shape[36], shape[37], shape[38], shape[39], shape[40], shape[41])
+		print(shape[42], shape[43], shape[44], shape[45], shape[46], shape[47])
 
-	eye1 = (mag(sub(shape[37], shape[41])) + mag(sub(shape[38], shape[40]))) / (2 * mag(sub(shape[36], shape[39])))
-	eye2 = (mag(sub(shape[43], shape[47])) + mag(sub(shape[44], shape[46]))) / (2 * mag(sub(shape[42], shape[45])))
+		eye1 = (mag(sub(shape[37], shape[41])) + mag(sub(shape[38], shape[40]))) / (2 * mag(sub(shape[36], shape[39])))
+		eye2 = (mag(sub(shape[43], shape[47])) + mag(sub(shape[44], shape[46]))) / (2 * mag(sub(shape[42], shape[45])))
 
-	avg = (eye1 + eye2)/2
+		avg = (eye1 + eye2)/2
 
-	print(avg)
+		print(avg)
 
-	if avg < 0.2:
-		print("Eyes closed.")
-	else:
-		print("Eyes open.")
+		if avg < 0.2:
+			websocket.send("::closed")
+		else:
+			websocket.send("::open")
 
-	for (x, y) in shape[36:48]:
-		cv2.circle(frame, (x, y), 1, (0, 0, 255), -1)
+start_server = websockets.serve(handle_socket, "localhost", 8081)
 
-	cv2.imwrite("output.jpg", frame)
-
-cv2.destroyAllWindows()
+asyncio.get_event_loop().run_until_complete(start_server)
+asyncio.get_event_loop().run_forever()
