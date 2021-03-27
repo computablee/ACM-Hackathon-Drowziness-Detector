@@ -1,5 +1,22 @@
 <!DOCTYPE html>
 <html>
+	<head>
+		<meta charset="UTF-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Viewer</title>
+	
+		<style type="text/css">
+			/* Set the size of the div element that contains the map */
+			#map {
+				height: 400px;
+				/* The height is 400 pixels */
+				width: 100%;
+				/* The width is the width of the web page */
+			}
+		</style>
+	</head>
+
 	<body>
 		<h1>
 			<p id="status">OpenOrClosed</p>
@@ -8,10 +25,22 @@
 
 	<video autoplay="true" id="videoElement"></video>
 	<canvas id="canvas"></canvas>
+	<br/>
+	<div id="map"></div>
 
 	<script type="text/javascript" src="https://unpkg.com/webcam-easy/dist/webcam-easy.min.js"></script>
 	<script>
-		let mainsocket = new WebSocket("ws://localhost:8081")
+		let map;
+
+		function initMap() {
+                        map = new google.maps.Map(document.getElementById("map"), {
+                                center: { lat: -34.397, lng: 150.644 },
+                                zoom: 14,
+                        });
+                }
+
+		let mainsocket = new WebSocket("ws://localhost:8081");
+		let mapsocket = new WebSocket("ws://localhost:8082");
 		let video = document.querySelector("#videoElement");
 		let canvas = document.getElementById("canvas");
 
@@ -26,13 +55,55 @@
 			}, 100);
 		}).catch(console.log);
 
+		mapsocket.onmessage = event => {
+			console.log("received message")
+			data = JSON.parse(event.data)
+        		console.log(data)
+        		for (index in data.results) {
+            			place = data.results[index]
+            			console.log(place)
+            			var myLatlng = new google.maps.LatLng(place.geometry.location.lat, place.geometry.location.lng);
+		
+        	    		var marker = new google.maps.Marker({
+        	        		position: myLatlng,
+        	        		map: map,
+        	  			title: place.name,
+          			});
+
+	      			console.log(marker)
+	       			marker.setMap(map)
+	        	}
+		}
+
 		mainsocket.onmessage = event => {
 			if (event.data === "::tired")
+			{
 				document.getElementById("status").innerHTML = "Tired";
+				if (navigator.geolocation) {
+					navigator.geolocation.getCurrentPosition((position) =>
+					{
+						const lat = position.coords.latitude;
+						const lon = position.coords.longitude;
+						const latlon = String(lat) + "," + String(lon);
+						pos = {
+							lat: lat,
+							lng: lon,
+						};
+						map.setCenter(pos);
+						mapsocket.send(latlon);
+					},
+					() => {
+						console.log("Error: The Geolocation service failed.");
+					});
+				} else {
+					console.log("Error: Geolocation not supported");
+				}
+			}
 			else if (event.data === "::open")
 				document.getElementById("status").innerHTML = "Open";
 			else
 				document.getElementById("status").innerHTML = "Closed";
 		};
 	</script>
+	<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB4BVsYcOcZwSfU24lYYTwjiWIettQxaTU&callback=initMap&libraries=&v=weekly" async></script>
 </html>

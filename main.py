@@ -1,5 +1,6 @@
-debug = True
+debug = False
 
+import os
 import _thread
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from imutils import face_utils
@@ -14,6 +15,8 @@ import websockets
 from imageio import imread
 import io
 import base64
+import requests
+import json
 
 
 class Serv(BaseHTTPRequestHandler):
@@ -72,6 +75,17 @@ _thread.start_new_thread(serve_server, ())
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(args["shape_predictor"])
 
+async def handle_map_socket(websocket, path):
+    while True:
+        latlon = await websocket.recv()
+        api_key = os.environ["MAP_API_KEY"]
+        response = requests.get(
+            f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?key={api_key}&location={latlon}&radius=2000&type=cafe")
+        if (response.status_code >= 400):
+            print("API Error")
+        else:
+            await websocket.send(json.dumps(response.json()))
+
 async def handle_socket(websocket, path):
 	tired = False
 	queue = []
@@ -129,7 +143,9 @@ async def handle_socket(websocket, path):
 				await websocket.send("::open")
 
 start_server = websockets.serve(handle_socket, "localhost", 8081)
+start_map = websockets.serve(handle_map_socket, "localhost", 8082)
 
 print("Serving websockets")
 asyncio.get_event_loop().run_until_complete(start_server)
+asyncio.get_event_loop().run_until_complete(start_map)
 asyncio.get_event_loop().run_forever()
