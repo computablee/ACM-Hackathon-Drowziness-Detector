@@ -1,8 +1,9 @@
-debug = False
+debug = True
 
 import _thread
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from imutils import face_utils
+from datetime import datetime, timedelta
 import numpy as np
 import cv2
 import dlib
@@ -14,48 +15,55 @@ from imageio import imread
 import io
 import base64
 
+
 class Serv(BaseHTTPRequestHandler):
-	def do_GET(self):
-		if self.path == '/':
-			self.path = "/index.html"
-		try:
-			file_to_open = open(self.path[1:]).read()
-			self.send_response(200)
-		except:
-			file_to_open = "File not found"
-			self.send_response(404)
-		self.end_headers()
-		self.wfile.write(bytes(file_to_open, "utf-8"))
+    def do_GET(self):
+        if self.path == '/':
+            self.path = "/index.html"
+        try:
+            file_to_open = open(self.path[1:]).read()
+            self.send_response(200)
+        except:
+            file_to_open = "File not found"
+            self.send_response(404)
+        self.end_headers()
+        self.wfile.write(bytes(file_to_open, "utf-8"))
+
 
 def serve_server():
-	httpd = HTTPServer(("localhost", 8080), Serv)
-	print("Serving HTTP server")
-	httpd.serve_forever()
+    httpd = HTTPServer(("localhost", 8080), Serv)
+    print("Serving HTTP server")
+    httpd.serve_forever()
 
 def mag(vec):
-	return np.sqrt(vec[0] * vec[0] + vec[1] * vec[1])
+    return np.sqrt(vec[0] * vec[0] + vec[1] * vec[1])
+
 
 def sub(vec1, vec2):
-	return (vec1[0] - vec2[0], vec1[1] - vec2[1])
+    return (vec1[0] - vec2[0], vec1[1] - vec2[1])
+
 
 def rect_to_bb(rect):
-	x = rect.left()
-	y = rect.top()
-	w = rect.right() - x
-	h = rect.bottom() - y
+    x = rect.left()
+    y = rect.top()
+    w = rect.right() - x
+    h = rect.bottom() - y
 
-	return (x, y, w, h)
+    return (x, y, w, h)
+
 
 def shape_to_np(shape, dtype="int"):
-	coords = np.zeros((68, 2), dtype=dtype)
+    coords = np.zeros((68, 2), dtype=dtype)
 
-	for i in range(0, 68):
-		coords[i] = (shape.part(i).x, shape.part(i).y)
+    for i in range(0, 68):
+        coords[i] = (shape.part(i).x, shape.part(i).y)
 
-	return coords
+    return coords
+
 
 ap = argparse.ArgumentParser()
-ap.add_argument("-p", "--shape-predictor", required=True, help="path to facial landmark predictor")
+ap.add_argument("-p", "--shape-predictor", required=True,
+                help="path to facial landmark predictor")
 
 args = vars(ap.parse_args())
 
@@ -67,6 +75,7 @@ predictor = dlib.shape_predictor(args["shape_predictor"])
 async def handle_socket(websocket, path):
 	tired = False
 	queue = []
+	timestamp = datetime.now()
 	while True:
 		data = await websocket.recv()
 		padding = len(data) % 4;
@@ -104,11 +113,16 @@ async def handle_socket(websocket, path):
 				continue
 
 			if avg < 0.18:
+				if (datetime.now() - timestamp > timedelta(seconds=2)):
+					tired = True
+
 				queue.append(1)
 				if len(queue) > 50:
                                         queue = queue[1:]
 				await websocket.send("::closed")
 			else:
+				timestamp = datetime.now()
+
 				queue.append(0)
 				if len(queue) > 50:
 					queue = queue[1:]
