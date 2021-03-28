@@ -6,13 +6,50 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>Viewer</title>
 	
+		<script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
 		<style type="text/css">
 			/* Set the size of the div element that contains the map */
 			#map {
 				height: 400px;
 				/* The height is 400 pixels */
-				width: 100%;
+				width: 60%;
 				/* The width is the width of the web page */
+			}
+			.siteContainer{
+				flex-direction: column;
+				justify-content: space-between;
+			}
+			.container {
+				display: inline-flex;
+				width: 100%;
+				justify-content: space-evenly;
+				padding-top: 10px;
+				padding-bottom: 10px;
+			}
+			
+			.videoWrapper {
+				margin: 0px auto;
+				width: 500px;
+				height: 375px;
+				border: 10px #333 solid;
+			}
+
+			.locationButton {
+				width: 100%;
+			}
+
+			#videoElement {
+				width: 500px;
+				height: 375px;
+				background-color: #666;
+			}
+
+			#info {
+				width: 30%;
+				height: 400px;
+				background-color: LightGray;
+				overflow: scroll;
+				font-size: large;
 			}
 		</style>
 	</head>
@@ -20,29 +57,100 @@
 	<body>
 		<h1>
 			<p id="status">OpenOrClosed</p>
+			<button id="test">
+				Click to be Tired!!!!!
+			</button>	
 		</h1>
+
+		<div class="siteContainer">
+			<div class="container">
+				<div class="videoWrapper">
+					<video autoplay="true" id="videoElement"></video>
+				</div>
+				<div class="videoWrapper">
+					<canvas id="canvas"></canvas>
+				</div>	
+			</div>
+	
+			<div class="container">
+				<div id="map"></div>
+				<div id="info">
+				</div>
+			</div>	
+		</div>
+	
 	</body>
 
-	<video autoplay="true" id="videoElement"></video>
-	<canvas id="canvas"></canvas>
-	<br/>
-	<div id="map"></div>
+	
 
 	<script type="text/javascript" src="https://unpkg.com/webcam-easy/dist/webcam-easy.min.js"></script>
 	<script>
-		let map;
+		let map, pos, directionsService, directionsRenderer;
 
 		function initMap() {
-                        map = new google.maps.Map(document.getElementById("map"), {
-                                center: { lat: -34.397, lng: 150.644 },
-                                zoom: 14,
-                        });
-                }
+			directionsService = new google.maps.DirectionsService();
+ 			directionsRenderer = new google.maps.DirectionsRenderer();
+
+			if (navigator.geolocation) {
+				navigator.geolocation.getCurrentPosition(
+					(position) => {
+						pos = {
+							lat: position.coords.latitude,
+							lng: position.coords.longitude,
+						};
+						map = new google.maps.Map(document.getElementById("map"), {
+							center: pos,
+							zoom: 12,
+						});
+						directionsRenderer.setMap(map)
+					},
+					() => {
+						map = new google.maps.Map(document.getElementById("map"), {
+							center: { lat: -34.397, lng: 150.644 },
+							zoom: 12,
+						});
+						directionsRenderer.setMap(map)
+					}
+				)
+
+			} else {
+				map = new google.maps.Map(document.getElementById("map"), {
+					center: { lat: -34.397, lng: 150.644 },
+					zoom: 12,
+				});
+				directionsRenderer.setMap(map)
+			}
+		}
 
 		let mainsocket = new WebSocket("ws://localhost:8081");
 		let mapsocket = new WebSocket("ws://localhost:8082");
 		let video = document.querySelector("#videoElement");
 		let canvas = document.getElementById("canvas");
+		let button = document.getElementById("test");
+
+		button.addEventListener("click", 
+			() => {
+				if (navigator.geolocation && !gotten_loc) {
+					gotten_loc = true;
+					navigator.geolocation.getCurrentPosition((position) =>
+					{
+						const lat = position.coords.latitude;
+						const lon = position.coords.longitude;
+						const latlon = String(lat) + "," + String(lon);
+						pos = {
+							lat: lat,
+							lng: lon,
+						};
+						map.setCenter(pos);
+						mapsocket.send(latlon);
+					},
+				() => {
+					console.log("Error: The Geolocation service failed.");
+				});
+				} else {
+					console.log("Error: Geolocation not supported");
+				}
+			})
 
 		const webcam = new Webcam(video, "user", canvas);
 		webcam.start().then(() =>
@@ -56,23 +164,43 @@
 		}).catch(console.log);
 
 		mapsocket.onmessage = event => {
-			console.log("received message")
 			data = JSON.parse(event.data)
-        		console.log(data)
-        		for (index in data.results) {
-            			place = data.results[index]
-            			console.log(place)
-            			var myLatlng = new google.maps.LatLng(place.geometry.location.lat, place.geometry.location.lng);
-		
-        	    		var marker = new google.maps.Marker({
-        	        		position: myLatlng,
-        	        		map: map,
-        	  			title: place.name,
-          			});
+			console.log(data)
+			for (index in data.results) {
+				place = data.results[index]
+				var myLatlng = new google.maps.LatLng(place.geometry.location.lat, place.geometry.location.lng);
+				var infoBox = document.getElementById("info")
 
-	      			console.log(marker)
-	       			marker.setMap(map)
-	        	}
+				var marker = new google.maps.Marker({
+					position: myLatlng,
+					map: map,
+					title: place.name,
+				});
+				marker.setMap(map)
+
+				var locationButton = document.createElement("Button")
+				locationButton.innerText = place.name + "\n" + place.vicinity
+				locationButton.value = place.vicinity
+				locationButton.className = "locationButton"
+				locationButton.addEventListener("click", (event) => {
+					directionsService.route(
+						{
+							origin: pos,
+							destination: event.target.value,
+							travelMode: google.maps.TravelMode.DRIVING,
+						},
+						(response, status) => {
+							if (status === "OK") {
+								directionsRenderer.setDirections(response);
+							} else {
+								window.alert("Directions request failed due to " + status);
+							}
+						}
+					);
+				})
+				infoBox.append(locationButton)
+			}
+
 		}
 
 		let gotten_loc = false;
@@ -99,7 +227,7 @@
 						console.log("Error: The Geolocation service failed.");
 					});
 				} else {
-					console.log("Error: Geolocation not supported");
+					console.log("Error: Geolocation not supported or already got loc");
 				}
 			}
 			else if (event.data === "::open")
