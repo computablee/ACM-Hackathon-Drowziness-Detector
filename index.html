@@ -5,27 +5,49 @@
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<title>Viewer</title>
-	
+
+		<!-- Latest compiled and minified CSS -->
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+		<!-- jQuery library -->
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+		<!-- Popper JS -->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+
+		<!-- Latest compiled JavaScript -->
+		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 		<script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
 		<style type="text/css">
 			/* Set the size of the div element that contains the map */
 			#map {
 				height: 400px;
 				/* The height is 400 pixels */
-				width: 60%;
+				width: 100%;
 				/* The width is the width of the web page */
 			}
 			.siteContainer{
-				flex-direction: column;
-				justify-content: space-between;
-			}
-			.container {
 				display: inline-flex;
 				width: 100%;
+				justify-content: space-evenly;
+			}
+			.containerCanvas {
+				flex-direction: column;
+				display: inline-flex;
+				width: 40%;
+				padding-top: 10px;
+				padding-bottom: 10px;
+			}
+
+			.containerMap {
+				flex-direction: column;
+				display: inline-flex;
+				width: 50%;
 				justify-content: space-evenly;
 				padding-top: 10px;
 				padding-bottom: 10px;
 			}
+
 			
 			.videoWrapper {
 				margin: 0px auto;
@@ -45,38 +67,42 @@
 			}
 
 			#info {
-				width: 30%;
-				height: 400px;
-				background-color: LightGray;
+				height: 300px;
 				overflow: scroll;
 				font-size: large;
 			}
+			
 		</style>
 	</head>
-
 	<body>
-		<h1>
-			<p id="status">OpenOrClosed</p>
-			<button id="test">
-				Click to be Tired!!!!!
-			</button>	
-		</h1>
+	<div class="container">
+		<nav class="navbar navbar-expand-lg navbar-light bg-light justify-content-between" style="padding: 8;">
+			<a class="navbar-brand" href="#">Drowsiness Detection</a>
+			<button id="test" class="btn btn-outline-danger my-2 my-sm-0">Test</button>
+		</nav>	
 
 		<div class="siteContainer">
-			<div class="container">
-                                <div id="map"></div>
-                                <div id="info">
-                                </div>
-                        </div>
-			<div class="container">
-				<div class="videoWrapper">
-					<canvas id="canvas"></canvas>
-				</div>	
-				<div class="videoWrapper" style="visibility: hidden;">
-                                        <video autoplay="true" id="videoElement"></video>
-                                </div>
+			<div class="containerCanvas">
+				<canvas id="canvas" style="border: 10px #333 solid;"></canvas>	
+				<div style="width: 100%; text-align: center;">
+					Prediction: <span id="status" class="badge badge-dark">OpenOrClosed</span>
+				</div>
+		
 			</div>
+			<div class="containerMap">
+				<div id="map"></div>
+				<div id="info">
+					<div class="btn-group-vertical" id="button-group" role="group" aria-label="List" style="width: 100%;">
+					</div>
+				</div>
+            </div>
 		</div>
+
+	</div>
+
+	<div class="videoWrapper" style="visibility: hidden;">
+		<video autoplay="true" id="videoElement"></video>
+	</div>
 	
 	</body>
 
@@ -164,11 +190,13 @@
 
 		mapsocket.onmessage = event => {
 			data = JSON.parse(event.data)
+			document.getElementById("info").style.border = "2px #333 solid"
+			document.getElementById("canvas").style.borderColor = "red"
 			console.log(data)
 			for (index in data.results) {
 				place = data.results[index]
 				var myLatlng = new google.maps.LatLng(place.geometry.location.lat, place.geometry.location.lng);
-				var infoBox = document.getElementById("info")
+				var buttonInfo = document.getElementById("button-group")
 
 				var marker = new google.maps.Marker({
 					position: myLatlng,
@@ -179,8 +207,11 @@
 
 				var locationButton = document.createElement("Button")
 				locationButton.innerText = place.name + "\n" + place.vicinity
+				locationButton.classList.add("btn")
+				locationButton.classList.add("btn-light")
 				locationButton.value = place.vicinity
-				locationButton.className = "locationButton"
+				locationButton.classList.add("locationButton")
+				locationButton.style.fontSize = "12px"
 				locationButton.addEventListener("click", (event) => {
 					directionsService.route(
 						{
@@ -197,7 +228,7 @@
 						}
 					);
 				})
-				infoBox.append(locationButton)
+				buttonInfo.append(locationButton)
 			}
 
 		}
@@ -208,6 +239,7 @@
 			if (event.data === "::tired")
 			{
 				document.getElementById("status").innerHTML = "Tired";
+				document.getElementById("canvas").style.borderColor = "red"
 				if (navigator.geolocation && !gotten_loc) {
 					gotten_loc = true;
 					navigator.geolocation.getCurrentPosition((position) =>
